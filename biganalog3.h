@@ -108,7 +108,7 @@ static void variables(int colorsh, int handsh) {
 			colorbg = GColorBlack;
 			colorticks = GColorWhite;
 			colorpoints = GColorWhite;
-			colorhour = GColorFromRGB(255,0,0);
+			colorhour = GColorFromRGB(0,255,0);
 			colorminute = GColorWhite;
 			colortext = GColorWhite;
 			colorbgtext = GColorBlack;

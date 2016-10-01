@@ -1,27 +1,7 @@
 #include <pebble.h>
 
-#define KEY_exterior 1
-#define KEY_hourhandbase 1
-#define KEY_hourhandwidth 2
-#define KEY_hourlenght 3
-#define KEY_minutehandbase 4
-#define KEY_minutehandwidth 5
-#define KEY_minutelenght 6
-#define KEY_maxminutelenght 7
-#define KEY_pointsize 8
-#define KEY_traitsize 9
-#define KEY_colorbg 10
-#define KEY_colorticks 11
-#define KEY_colorpoints 12
-#define KEY_colorhour 13
-#define KEY_colorminute 14
-#define KEY_colortext 15
-#define KEY_colorbgtext 16
-#define KEY_secondhand 17
-
-
 static int debug=1; // debug=0: No log, 1:logs, 2:verbose, 3:verbose+specific
-static int printscreen=0; //0:normal 1:shows 10h10
+static int printscreen=1; //0:normal 1:shows 10h10 2:shows 10h15
 static int hi=0; //0:normal 1:date on the 12
 static int colorscheme=1; //colorscheme change based on movments
 static int handscheme=0; //handscheme change based on movments
@@ -30,7 +10,7 @@ static int exterior; //size of the exterior circle
 static int count=0; //>0:show second hand 0:not
 static int countmax=10; //nb of seconds to show second hand after shake
 static int secondhand=0; //0 if now draw, 1 if draw
-static int btvibe=1; //1 will vibe for bt loss, 0 will not vibe
+static int btvibe=0; //1 will vibe for bt loss, 0 will not vibe
 
 static int hourhandbase, hourhandwidth, hourlenght;
 static int minutehandbase, minutehandwidth, minutelenght, maxminutelenght;
@@ -55,41 +35,7 @@ static BitmapLayer *s_background_layer, *s_bt_icon_layer;
 static GBitmap *s_background_bitmap, *s_bt_icon_bitmap;
 
 #include "biganalog3.h"
-/*
-static void inbox_received_handler(DictionaryIterator *iter, void *context) {
-  //Tuple *background_color_t = dict_find(iter, KEY_BACKGROUND_COLOR);
-  //Tuple *twenty_four_hour_format_t = dict_find(iter, KEY_TWENTY_FOUR_HOUR_FORMAT);
 
-	Tuple *exterior_t = dict_find(iter, KEY_exterior);
-	Tuple *hourhandbase_t = dict_find(iter, KEY_hourhandbase);
-	Tuple *hourhandwidth_t = dict_find(iter, KEY_hourhandwidth);
-	Tuple *hourlenght_t = dict_find(iter, KEY_hourlenght);
-	Tuple *minutehandbase_t = dict_find(iter, KEY_minutehandbase);
-	Tuple *minutehandwidth_t = dict_find(iter, KEY_minutehandwidth);
-	Tuple *minutelenght_t = dict_find(iter, KEY_minutelenght);
-	Tuple *maxminutelenght_t = dict_find(iter, KEY_maxminutelenght);
-	Tuple *pointsize_t = dict_find(iter, KEY_pointsize);
-	Tuple *traitsize_t = dict_find(iter, KEY_traitsize);
-	Tuple *colorbg_t = dict_find(iter, KEY_colorbg);
-	Tuple *colorticks_t = dict_find(iter, KEY_colorticks);
-	Tuple *colorpoints_t = dict_find(iter, KEY_colorpoints);
-	Tuple *colorhour_t = dict_find(iter, KEY_colorhour);
-	Tuple *colorminute_t = dict_find(iter, KEY_colorminute);
-	Tuple *colortext_t = dict_find(iter, KEY_colortext);
-	Tuple *colorbgtext_t = dict_find(iter, KEY_colorbgtext);
-	Tuple *secondhand_t = dict_find(iter, KEY_secondhand);
-
-  if (exterior_t) {
-    int exterior = exterior_t->value->int32;
-    persist_write_int(KEY_exterior, exterior);
-  }
-
-  if (secondhand_t) {
-    int secondhand = secondhand_t->value->int32;
-    persist_write_int(KEY_secondhand, secondhand);
-  }
-}
-*/
 static void date_update_proc2() {
 	time_t now = time(NULL);
 	struct tm *t = localtime(&now);
@@ -148,12 +94,10 @@ static void handle_minute_tick(struct tm *tick_time, TimeUnits units_changed) {
 static void bluetooth_callback(bool connected) {
   // Show icon if disconnected
   layer_set_hidden(bitmap_layer_get_layer(s_bt_icon_layer), connected);
-/*
   if(!connected) {
     // Issue a vibrating alert
     if (btvibe > 0) {vibes_double_pulse();}
   }
-*/
 }
 
 static void battery_callback(BatteryChargeState state) {
@@ -245,10 +189,6 @@ static void bg_update_proc(Layer *layer, GContext *ctx) {
 		.y = -cos_lookup(TRIG_MAX_ANGLE*(s_battery_level / 10 -5)/20) * 24 / TRIG_MAX_RATIO + center.y+50
 		};
 	//graphics_context_set_stroke_color(ctx, colorticks);
-	if (debug > 0) {APP_LOG(APP_LOG_LEVEL_INFO, "P4.x=%d", P4.x);}
-	if (debug > 0) {APP_LOG(APP_LOG_LEVEL_INFO, "P4.y=%d", P4.y);}
-	if (debug > 0) {APP_LOG(APP_LOG_LEVEL_INFO, "P5.x=%d", P5.x);}
-	if (debug > 0) {APP_LOG(APP_LOG_LEVEL_INFO, "P5.y=%d", P5.y);}
 	graphics_draw_line(ctx, P4, P5);    
 	if (debug==2) {
 		uint16_t ms = time_ms(NULL,NULL);		
@@ -268,12 +208,14 @@ static void hands_update_proc(Layer *layer, GContext *ctx) {
 	time_t now = time(NULL);
 	struct tm *t = localtime(&now);
 	if (printscreen == 1) {
-		t->tm_min = 10;
 		t->tm_hour = 10;
+		t->tm_min = 10;
 	}
-	if (t->tm_hour > 7) {
-		btvibe = 1;
-	} else { btvibe = 0; }
+	if (printscreen == 2) {
+		t->tm_hour = 10;
+		t->tm_min = 15;
+	}
+	//if (t->tm_hour > 7) {btvibe = 1;} else { btvibe = 0; }
 
 	// second hand
 	if (count>0) {
@@ -302,9 +244,11 @@ static void hands_update_proc(Layer *layer, GContext *ctx) {
 	gpath_draw_filled(ctx, s_minute_arrow);
 	//  gpath_draw_outline(ctx, s_minute_arrow1);
 
-	graphics_context_set_fill_color(ctx, colorhour);
+	//if (colorminute!=colorhour) and (debug==2) {APP_LOG(APP_LOG_LEVEL_INFO, "colorminute!=colorhour");}
+
 	gpath_rotate_to(s_hour_arrow, (TRIG_MAX_ANGLE * (((t->tm_hour % 12) * 6) + (t->tm_min / 10))) / (12 * 6));
 	hourangle = (int) (60 * (((t->tm_hour % 12) * 6) + (t->tm_min / 10))) / (12 * 6);
+	graphics_context_set_fill_color(ctx, colorhour);
 	gpath_draw_filled(ctx, s_hour_arrow);
 	//  gpath_draw_outline(ctx, s_hour_arrow1);
 
